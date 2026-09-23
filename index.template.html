@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Divide-and-Remember: Recursive Action-Relevant Memory for Long-Horizon VLA Policies</title>
+<meta name="description" content="Divide-and-Remember (D&R): a recursive memory for vision-language-action policies that learns what to remember by maximising the action-relevant information of the history.">
+<style>
+  :root { --ink:#222; --muted:#666; --line:#e6e6e6; --accent:#50759F; --bg:#fff; --soft:#f6f7f9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color:var(--ink); background:var(--bg); line-height:1.55; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 24px 20px 60px; }
+  header { text-align:center; padding: 36px 0 12px; }
+  h1 { font-size: 2.0rem; line-height:1.25; margin: 0 0 10px; font-weight: 700; }
+  h1 .sub { display:block; font-size:1.35rem; font-weight:500; color:var(--muted); margin-top:6px; }
+  .authors { color:var(--muted); font-size:1.05rem; margin: 10px 0 4px; }
+  .venue { color:var(--muted); font-size:0.98rem; }
+  .btns { margin: 18px 0 8px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .btn { display:inline-block; padding:8px 16px; border-radius:22px; background:#2b2b2b; color:#fff; text-decoration:none; font-size:0.95rem; }
+  .btn.soon { background:#9a9a9a; cursor:default; }
+  h2 { font-size:1.45rem; margin: 44px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  h3 { font-size:1.1rem; margin: 22px 0 6px; }
+  p { margin: 10px 0; }
+  figure { margin: 18px 0; }
+  figure img { width:100%; height:auto; display:block; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  figcaption { font-size:0.92rem; color:var(--muted); margin-top:8px; }
+  .callout { background:var(--soft); border-left:4px solid var(--accent); padding:12px 16px; border-radius:6px; margin:16px 0; }
+  .tablewrap { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; font-size:0.92rem; margin: 12px 0; }
+  th, td { padding:6px 8px; text-align:center; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { background:var(--soft); font-weight:600; }
+  td:first-child, th:first-child { text-align:left; }
+  tr.ours td { background:#eef3f8; }
+  b.best { color:#000; }
+  ul { padding-left: 20px; }
+  li { margin: 6px 0; }
+  pre { background:var(--soft); padding:14px; border-radius:6px; overflow-x:auto; font-size:0.9rem; }
+  footer { margin-top:50px; color:var(--muted); font-size:0.88rem; text-align:center; border-top:1px solid var(--line); padding-top:16px; }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+  /* Simulation Rollout Demos (layout of robomme.github.io) */
+  .sim-title { text-align:center; font-size:1.45rem; margin: 44px 0 18px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  .tabs-container { margin-bottom:1.5rem; }
+  .task-tabs { display:flex; justify-content:center; gap:0.5rem; flex-wrap:wrap; border-bottom:2px solid #e0e0e0; padding-bottom:0; }
+  .task-tab { padding:0.75rem 1.5rem; font-size:1.1rem; font-weight:600; color:#666; background:transparent; border:none; border-bottom:3px solid transparent; cursor:pointer; transition:all 0.2s ease; margin-bottom:-2px; font-family:inherit; }
+  .task-tab:hover { color:#3273dc; background-color:rgba(50,115,220,0.05); }
+  .task-tab.active { color:#3273dc; border-bottom-color:#3273dc; background-color:rgba(50,115,220,0.08); }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; animation:fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  .sim-task-row { background:#f9f9f9; border-radius:8px; padding:1rem; margin-bottom:1rem; }
+  .demo-task-header { display:flex; align-items:center; gap:1rem; margin-bottom:0.75rem; flex-wrap:wrap; }
+  .demo-task-header .task-name { font-weight:bold; color:#3273dc; font-size:1.2rem; }
+  .demo-task-header .task-goal { color:#666; font-size:1.05rem; }
+  .sim-episode-selector { padding:0.4rem; border-radius:4px; border:1px solid #ddd; font-family:inherit; font-size:0.95rem; background:#fff; }
+  .demo-video-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+  .demo-video-col { display:flex; flex-direction:column; align-items:center; }
+  .sim-model-selector { width:100%; padding:0.5rem; margin-bottom:0.5rem; border-radius:4px; border:1px solid #ddd; font-family:inherit; font-size:0.95rem; background:#fff; }
+  .demo-video { width:100%; border-radius:4px; display:block; background:#000; aspect-ratio:512/260; }
+  /* Real Robot Rollout Demos: selected trials as buttons; the three methods of a trial stacked (16:3 strips, full width) */
+  .real-video { width:100%; border-radius:4px; display:block; background:#000; aspect-ratio:16/3; }
+  .task-suite { font-size:0.85rem; color:#fff; background:#8a8a8a; border-radius:10px; padding:1px 9px; }
+  .real-score { color:#555; font-size:0.95rem; margin-left:auto; }
+  .real-trials { display:flex; flex-direction:column; gap:0.45rem; margin:0.2rem 0 0.8rem; }
+  .real-trial-group { display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; }
+  .real-n { min-width:3.2rem; font-weight:600; color:#444; }
+  .real-trial { padding:0.3rem 0.8rem; border:1px solid #cfd4dc; border-radius:14px; background:#fff; font-family:inherit; font-size:0.92rem; color:#333; cursor:pointer; }
+  .real-trial:hover { border-color:#3273dc; color:#3273dc; }
+  .real-trial.active { background:#3273dc; border-color:#3273dc; color:#fff; }
+  .real-goal { display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; color:#666; font-size:0.98rem; margin:0 0 0.7rem; }
+  .real-sync { margin-left:auto; padding:0.3rem 0.8rem; border:1px solid #cfd4dc; border-radius:4px; background:#fff; font-family:inherit; font-size:0.88rem; color:#333; cursor:pointer; }
+  .real-stack { display:flex; flex-direction:column; gap:1rem; }
+  .real-method-head { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; margin-bottom:0.35rem; }
+  .real-method-name { font-weight:600; color:#222; }
+  .real-method[data-model="dnr"] .real-method-name { color:#3273dc; }
+  .real-ep-short { display:none; }
+  @media (max-width: 600px) { .real-ep-long { display:none; } .real-ep-short { display:inline; } .real-trial { padding:0.25rem 0.6rem; font-size:0.88rem; } .real-n { min-width:2.6rem; } }
+  .result-label-container { text-align:center; margin-top:0.5rem; }
+  .result-label { display:inline-block; text-align:center; font-weight:bold; font-size:0.95rem; padding:0.25rem 0.75rem; border-radius:4px; }
+  .result-label.success { color:#23d160; background-color:rgba(35,209,96,0.1); border:1px solid #23d160; }
+  .result-label.failure { color:#ff3860; background-color:rgba(255,56,96,0.1); border:1px solid #ff3860; }
+  @media (max-width: 768px) { .task-tab { padding:0.5rem 1rem; font-size:0.95rem; } .demo-video-row { grid-template-columns:1fr; } }
+  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } h1 { font-size:1.55rem; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Divide-and-Remember<span class="sub">Recursive Action-Relevant Memory for Long-Horizon VLA Policies</span></h1>
+  <div class="authors">Anonymous authors</div>
+  <div class="venue">Under review at ICLR 2027</div>
+  <div class="btns">
+    <span class="btn soon">Paper (coming soon)</span>
+    <span class="btn soon">Code (coming soon)</span>
+  </div>
+</header>
+
+<figure>
+  <img src="assets/intro_taser.png" alt="Teaser: history-dependent tasks and learning what to remember">
+  <figcaption>(a) Two demonstrations reach the same observation but require different actions: the policy needs a memory of the history. (b) D&amp;R learns what to remember: a memory <i>m<sub>t</sub></i> = 𝓜(<i>h<sub>t</sub></i>) that retrieves the key fact from the full history under a fixed token budget.</figcaption>
+</figure>
+
+<h2>Abstract</h2>
+<p>Vision–language–action (VLA) models struggle on history-dependent manipulation tasks, where the current observation alone does not determine the action, and the policy needs a memory of the history. Existing memory methods decide what to remember by design, for example keeping frames with large pixel changes, and show inconsistent gains across tasks. We view what to remember as an optimisation problem. From the POMDP formulation of imitation learning, we show that the optimal memory maximises the conditional mutual information <i>I</i>(<i>a<sub>t</sub></i>; <i>m<sub>t</sub></i> | <i>o<sub>t</sub></i>) between the action and the memory given the current observation, the information the decision needs but the observation lacks. We propose <b>Divide-and-Remember (D&amp;R)</b>, a recursive memory method that learns <i>m<sub>t</sub></i> = 𝓜(<i>h<sub>t</sub></i>) to maximise this objective, scaling to long contexts while staying compute-light. It involves two strategies: (1) the selection over the full history is divided recursively into subproblems of top-<i>K</i> selection over 2<i>K</i> tokens, so that fixed-size, lightweight selectors learned end-to-end support an unbounded history, and the composition comes with an approximation guarantee; (2) all recursion blocks share one selector, which captures the selection rule common to every block and keeps the method efficient. On RoboMME, a benchmark of 16 long-horizon manipulation tasks, D&amp;R achieves a state-of-the-art average success rate with consistent gains across all four suites under a budget of only 64 tokens; real-robot experiments show the same gain.</p>
+
+<h2 class="sim-title">Simulation Rollout Demos</h2>
+<p>Front and wrist camera of the RoboMME evaluation episodes (episodes 1&ndash;10 of every task, model seed 42). The same episode id is the same environment across methods; pick the episode and the two methods to compare. All methods share the &pi;<sub>0.5</sub> backbone; the memoryless &pi;<sub>0.5</sub> sees only the current observation.</p>
+<!--ROLLOUTS-->
+
+<h2 class="sim-title">Real Robot Rollout Demos</h2>
+<!--REAL_ROLLOUTS-->
+
+
+
+<h2>BibTeX</h2>
+<pre>@inproceedings{anonymous2027divide,
+  title     = {Divide-and-Remember: Recursive Action-Relevant Memory for Long-Horizon VLA Policies},
+  author    = {Anonymous},
+  booktitle = {Under review at the International Conference on Learning Representations (ICLR)},
+  year      = {2027}
+}</pre>
+
+<footer>Anonymous project page for double-blind review.</footer>
+</div>
+<!--ROLLOUTS_JS-->
+</body>
+</html>

@@ -1,0 +1,1048 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Divide-and-Remember: Recursive Action-Relevant Memory for Long-Horizon VLA Policies</title>
+<meta name="description" content="Divide-and-Remember (D&R): a recursive memory for vision-language-action policies that learns what to remember by maximising the action-relevant information of the history.">
+<style>
+  :root { --ink:#222; --muted:#666; --line:#e6e6e6; --accent:#50759F; --bg:#fff; --soft:#f6f7f9; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color:var(--ink); background:var(--bg); line-height:1.55; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 24px 20px 60px; }
+  header { text-align:center; padding: 36px 0 12px; }
+  h1 { font-size: 2.0rem; line-height:1.25; margin: 0 0 10px; font-weight: 700; }
+  h1 .sub { display:block; font-size:1.35rem; font-weight:500; color:var(--muted); margin-top:6px; }
+  .authors { color:var(--muted); font-size:1.05rem; margin: 10px 0 4px; }
+  .venue { color:var(--muted); font-size:0.98rem; }
+  .btns { margin: 18px 0 8px; display:flex; gap:10px; justify-content:center; flex-wrap:wrap; }
+  .btn { display:inline-block; padding:8px 16px; border-radius:22px; background:#2b2b2b; color:#fff; text-decoration:none; font-size:0.95rem; }
+  .btn.soon { background:#9a9a9a; cursor:default; }
+  h2 { font-size:1.45rem; margin: 44px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  h3 { font-size:1.1rem; margin: 22px 0 6px; }
+  p { margin: 10px 0; }
+  figure { margin: 18px 0; }
+  figure img { width:100%; height:auto; display:block; border:1px solid var(--line); border-radius:6px; background:#fff; }
+  figcaption { font-size:0.92rem; color:var(--muted); margin-top:8px; }
+  .callout { background:var(--soft); border-left:4px solid var(--accent); padding:12px 16px; border-radius:6px; margin:16px 0; }
+  .tablewrap { overflow-x:auto; }
+  table { border-collapse:collapse; width:100%; font-size:0.92rem; margin: 12px 0; }
+  th, td { padding:6px 8px; text-align:center; border-bottom:1px solid var(--line); white-space:nowrap; }
+  th { background:var(--soft); font-weight:600; }
+  td:first-child, th:first-child { text-align:left; }
+  tr.ours td { background:#eef3f8; }
+  b.best { color:#000; }
+  ul { padding-left: 20px; }
+  li { margin: 6px 0; }
+  pre { background:var(--soft); padding:14px; border-radius:6px; overflow-x:auto; font-size:0.9rem; }
+  footer { margin-top:50px; color:var(--muted); font-size:0.88rem; text-align:center; border-top:1px solid var(--line); padding-top:16px; }
+  .grid2 { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+  /* Simulation Rollout Demos (layout of robomme.github.io) */
+  .sim-title { text-align:center; font-size:1.45rem; margin: 44px 0 18px; padding-bottom:6px; border-bottom:1px solid var(--line); }
+  .tabs-container { margin-bottom:1.5rem; }
+  .task-tabs { display:flex; justify-content:center; gap:0.5rem; flex-wrap:wrap; border-bottom:2px solid #e0e0e0; padding-bottom:0; }
+  .task-tab { padding:0.75rem 1.5rem; font-size:1.1rem; font-weight:600; color:#666; background:transparent; border:none; border-bottom:3px solid transparent; cursor:pointer; transition:all 0.2s ease; margin-bottom:-2px; font-family:inherit; }
+  .task-tab:hover { color:#3273dc; background-color:rgba(50,115,220,0.05); }
+  .task-tab.active { color:#3273dc; border-bottom-color:#3273dc; background-color:rgba(50,115,220,0.08); }
+  .tab-content { display:none; }
+  .tab-content.active { display:block; animation:fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+  .sim-task-row { background:#f9f9f9; border-radius:8px; padding:1rem; margin-bottom:1rem; }
+  .demo-task-header { display:flex; align-items:center; gap:1rem; margin-bottom:0.75rem; flex-wrap:wrap; }
+  .demo-task-header .task-name { font-weight:bold; color:#3273dc; font-size:1.2rem; }
+  .demo-task-header .task-goal { color:#666; font-size:1.05rem; }
+  .sim-episode-selector { padding:0.4rem; border-radius:4px; border:1px solid #ddd; font-family:inherit; font-size:0.95rem; background:#fff; }
+  .demo-video-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+  .demo-video-col { display:flex; flex-direction:column; align-items:center; }
+  .sim-model-selector { width:100%; padding:0.5rem; margin-bottom:0.5rem; border-radius:4px; border:1px solid #ddd; font-family:inherit; font-size:0.95rem; background:#fff; }
+  .demo-video { width:100%; border-radius:4px; display:block; background:#000; aspect-ratio:512/260; }
+  /* Real Robot Rollout Demos: selected trials as buttons; the three methods of a trial stacked (16:3 strips, full width) */
+  .real-video { width:100%; border-radius:4px; display:block; background:#000; aspect-ratio:16/3; }
+  .task-suite { font-size:0.85rem; color:#fff; background:#8a8a8a; border-radius:10px; padding:1px 9px; }
+  .real-score { color:#555; font-size:0.95rem; margin-left:auto; }
+  .real-trials { display:flex; flex-direction:column; gap:0.45rem; margin:0.2rem 0 0.8rem; }
+  .real-trial-group { display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; }
+  .real-n { min-width:3.2rem; font-weight:600; color:#444; }
+  .real-trial { padding:0.3rem 0.8rem; border:1px solid #cfd4dc; border-radius:14px; background:#fff; font-family:inherit; font-size:0.92rem; color:#333; cursor:pointer; }
+  .real-trial:hover { border-color:#3273dc; color:#3273dc; }
+  .real-trial.active { background:#3273dc; border-color:#3273dc; color:#fff; }
+  .real-goal { display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; color:#666; font-size:0.98rem; margin:0 0 0.7rem; }
+  .real-sync { margin-left:auto; padding:0.3rem 0.8rem; border:1px solid #cfd4dc; border-radius:4px; background:#fff; font-family:inherit; font-size:0.88rem; color:#333; cursor:pointer; }
+  .real-stack { display:flex; flex-direction:column; gap:1rem; }
+  .real-method-head { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; margin-bottom:0.35rem; }
+  .real-method-name { font-weight:600; color:#222; }
+  .real-method[data-model="dnr"] .real-method-name { color:#3273dc; }
+  .real-ep-short { display:none; }
+  @media (max-width: 600px) { .real-ep-long { display:none; } .real-ep-short { display:inline; } .real-trial { padding:0.25rem 0.6rem; font-size:0.88rem; } .real-n { min-width:2.6rem; } }
+  .result-label-container { text-align:center; margin-top:0.5rem; }
+  .result-label { display:inline-block; text-align:center; font-weight:bold; font-size:0.95rem; padding:0.25rem 0.75rem; border-radius:4px; }
+  .result-label.success { color:#23d160; background-color:rgba(35,209,96,0.1); border:1px solid #23d160; }
+  .result-label.failure { color:#ff3860; background-color:rgba(255,56,96,0.1); border:1px solid #ff3860; }
+  @media (max-width: 768px) { .task-tab { padding:0.5rem 1rem; font-size:0.95rem; } .demo-video-row { grid-template-columns:1fr; } }
+  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } h1 { font-size:1.55rem; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Divide-and-Remember<span class="sub">Recursive Action-Relevant Memory for Long-Horizon VLA Policies</span></h1>
+  <div class="authors">Anonymous authors</div>
+  <div class="venue">Under review at ICLR 2027</div>
+  <div class="btns">
+    <span class="btn soon">Paper (coming soon)</span>
+    <span class="btn soon">Code (coming soon)</span>
+  </div>
+</header>
+
+<figure>
+  <img src="assets/intro_taser.png" alt="Teaser: history-dependent tasks and learning what to remember">
+  <figcaption>(a) Two demonstrations reach the same observation but require different actions: the policy needs a memory of the history. (b) D&amp;R learns what to remember: a memory <i>m<sub>t</sub></i> = 𝓜(<i>h<sub>t</sub></i>) that retrieves the key fact from the full history under a fixed token budget.</figcaption>
+</figure>
+
+<h2>Abstract</h2>
+<p>Vision–language–action (VLA) models struggle on history-dependent manipulation tasks, where the current observation alone does not determine the action, and the policy needs a memory of the history. Existing memory methods decide what to remember by design, for example keeping frames with large pixel changes, and show inconsistent gains across tasks. We view what to remember as an optimisation problem. From the POMDP formulation of imitation learning, we show that the optimal memory maximises the conditional mutual information <i>I</i>(<i>a<sub>t</sub></i>; <i>m<sub>t</sub></i> | <i>o<sub>t</sub></i>) between the action and the memory given the current observation, the information the decision needs but the observation lacks. We propose <b>Divide-and-Remember (D&amp;R)</b>, a recursive memory method that learns <i>m<sub>t</sub></i> = 𝓜(<i>h<sub>t</sub></i>) to maximise this objective, scaling to long contexts while staying compute-light. It involves two strategies: (1) the selection over the full history is divided recursively into subproblems of top-<i>K</i> selection over 2<i>K</i> tokens, so that fixed-size, lightweight selectors learned end-to-end support an unbounded history, and the composition comes with an approximation guarantee; (2) all recursion blocks share one selector, which captures the selection rule common to every block and keeps the method efficient. On RoboMME, a benchmark of 16 long-horizon manipulation tasks, D&amp;R achieves a state-of-the-art average success rate with consistent gains across all four suites under a budget of only 64 tokens; real-robot experiments show the same gain.</p>
+
+<h2 class="sim-title">Simulation Rollout Demos</h2>
+<p>Front and wrist camera of the RoboMME evaluation episodes (episodes 1&ndash;10 of every task, model seed 42). The same episode id is the same environment across methods; pick the episode and the two methods to compare. All methods share the &pi;<sub>0.5</sub> backbone; the memoryless &pi;<sub>0.5</sub> sees only the current observation.</p>
+<div class="tabs-container"><div class="task-tabs" id="sim-demo-tabs">
+<button class="task-tab active" data-tab="sim-counting">Suite 1: Counting</button>
+<button class="task-tab" data-tab="sim-permanence">Suite 2: Permanence</button>
+<button class="task-tab" data-tab="sim-reference">Suite 3: Reference</button>
+<button class="task-tab" data-tab="sim-imitation">Suite 4: Imitation</button>
+</div></div>
+<div class="tab-content sim-demo-content active" id="sim-counting">
+<div class="sim-task-row" data-suite="counting" data-task="binfill">
+<div class="demo-task-header"><span class="task-name">Task 1.1: BinFill</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="1">Episode 1</option><option value="2">Episode 2</option><option value="5">Episode 5</option><option value="9">Episode 9</option><option value="15">Episode 15</option><option value="17">Episode 17</option><option value="18">Episode 18</option><option value="24">Episode 24</option><option value="26">Episode 26</option><option value="29">Episode 29</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">put one red cube into the bin, then press the button to stop</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/counting/binfill/ep1_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/counting/binfill/ep1_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+<div class="sim-task-row" data-suite="counting" data-task="pickxtimes">
+<div class="demo-task-header"><span class="task-name">Task 1.2: PickXtimes</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="2">Episode 2</option><option value="3">Episode 3</option><option value="5">Episode 5</option><option value="6">Episode 6</option><option value="7">Episode 7</option><option value="9">Episode 9</option><option value="10">Episode 10</option><option value="11">Episode 11</option><option value="13">Episode 13</option><option value="14">Episode 14</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">pick up the green cube and place it on the target, then press the button to stop</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/counting/pickxtimes/ep2_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/counting/pickxtimes/ep2_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+<div class="sim-task-row" data-suite="counting" data-task="swingxtimes">
+<div class="demo-task-header"><span class="task-name">Task 1.3: SwingXtimes</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="1">Episode 1</option><option value="2">Episode 2</option><option value="3">Episode 3</option><option value="4">Episode 4</option><option value="5">Episode 5</option><option value="6">Episode 6</option><option value="7">Episode 7</option><option value="8">Episode 8</option><option value="9">Episode 9</option><option value="10">Episode 10</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">pick up the green cube, move it to the top of the right-side target, then move it to the top of the left-side target, repeating this back-and-forth motion two times, finally press the button to stop</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/counting/swingxtimes/ep1_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/counting/swingxtimes/ep1_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+<div class="sim-task-row" data-suite="counting" data-task="stopcube">
+<div class="demo-task-header"><span class="task-name">Task 1.4: StopCube</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="1">Episode 1</option><option value="2">Episode 2</option><option value="3">Episode 3</option><option value="4">Episode 4</option><option value="6">Episode 6</option><option value="12">Episode 12</option><option value="19">Episode 19</option><option value="22">Episode 22</option><option value="24">Episode 24</option><option value="26">Episode 26</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">press the button to stop the cube just as it reaches the target for the fourth time</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/counting/stopcube/ep1_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/counting/stopcube/ep1_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+</div>
+<div class="tab-content sim-demo-content" id="sim-permanence">
+<div class="sim-task-row" data-suite="permanence" data-task="videounmask">
+<div class="demo-task-header"><span class="task-name">Task 2.1: VideoUnmask</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="1">Episode 1</option><option value="5">Episode 5</option><option value="6">Episode 6</option><option value="9">Episode 9</option><option value="10">Episode 10</option><option value="11">Episode 11</option><option value="17">Episode 17</option><option value="18">Episode 18</option><option value="23">Episode 23</option><option value="24">Episode 24</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">watch the video carefully, then pick up the container hiding the green cube</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/permanence/videounmask/ep1_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/permanence/videounmask/ep1_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+<div class="sim-task-row" data-suite="permanence" data-task="buttonunmask">
+<div class="demo-task-header"><span class="task-name">Task 2.2: ButtonUnmask</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="3">Episode 3</option><option value="8">Episode 8</option><option value="10">Episode 10</option><option value="15">Episode 15</option><option value="19">Episode 19</option><option value="25">Episode 25</option><option value="29">Episode 29</option><option value="30">Episode 30</option><option value="37">Episode 37</option><option value="38">Episode 38</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">first press the button, then pick up the container hiding the green cube</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/permanence/buttonunmask/ep3_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/permanence/buttonunmask/ep3_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+<div class="sim-task-row" data-suite="permanence" data-task="videounmaskswap">
+<div class="demo-task-header"><span class="task-name">Task 2.3: VideoUnmaskSwap</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="1">Episode 1</option><option value="2">Episode 2</option><option value="7">Episode 7</option><option value="9">Episode 9</option><option value="11">Episode 11</option><option value="14">Episode 14</option><option value="19">Episode 19</option><option value="20">Episode 20</option><option value="24">Episode 24</option><option value="25">Episode 25</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">watch the video carefully, then pick up the container hiding the green cube, finally pick up another container hiding the blue cube</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/permanence/videounmaskswap/ep1_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/permanence/videounmaskswap/ep1_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+<div class="sim-task-row" data-suite="permanence" data-task="buttonunmaskswap">
+<div class="demo-task-header"><span class="task-name">Task 2.4: ButtonUnmaskSwap</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="1">Episode 1</option><option value="2">Episode 2</option><option value="5">Episode 5</option><option value="9">Episode 9</option><option value="12">Episode 12</option><option value="13">Episode 13</option><option value="15">Episode 15</option><option value="35">Episode 35</option><option value="37">Episode 37</option><option value="48">Episode 48</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">first press both buttons on the table, then pick up the container hiding the blue cube, finally pick up another container hiding the green cube</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/permanence/buttonunmaskswap/ep1_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/permanence/buttonunmaskswap/ep1_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+</div>
+<div class="tab-content sim-demo-content" id="sim-reference">
+<div class="sim-task-row" data-suite="reference" data-task="pickhighlight">
+<div class="demo-task-header"><span class="task-name">Task 3.1: PickHighlight</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="11">Episode 11</option><option value="15">Episode 15</option><option value="17">Episode 17</option><option value="19">Episode 19</option><option value="21">Episode 21</option><option value="23">Episode 23</option><option value="29">Episode 29</option><option value="30">Episode 30</option><option value="35">Episode 35</option><option value="39">Episode 39</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">first press the button, then pick up all cubes that have been highlighteted with white areas on the table</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/reference/pickhighlight/ep11_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/reference/pickhighlight/ep11_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+<div class="sim-task-row" data-suite="reference" data-task="videorepick">
+<div class="demo-task-header"><span class="task-name">Task 3.2: VideoRepick</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="1">Episode 1</option><option value="2">Episode 2</option><option value="6">Episode 6</option><option value="11">Episode 11</option><option value="13">Episode 13</option><option value="14">Episode 14</option><option value="17">Episode 17</option><option value="25">Episode 25</option><option value="29">Episode 29</option><option value="34">Episode 34</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">watch the video carefully, then repeatedly pick up and put down the same block that was previously picked up for three times, finally put it down and press the button to stop</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/reference/videorepick/ep1_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/reference/videorepick/ep1_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+<div class="sim-task-row" data-suite="reference" data-task="videoplacebutton">
+<div class="demo-task-header"><span class="task-name">Task 3.3: VideoPlaceButton</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="1">Episode 1</option><option value="4">Episode 4</option><option value="15">Episode 15</option><option value="17">Episode 17</option><option value="20">Episode 20</option><option value="21">Episode 21</option><option value="25">Episode 25</option><option value="26">Episode 26</option><option value="27">Episode 27</option><option value="30">Episode 30</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">watch the video carefully, then place the green cube on the target right after the button was pressed</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/reference/videoplacebutton/ep1_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/reference/videoplacebutton/ep1_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+<div class="sim-task-row" data-suite="reference" data-task="videoplaceorder">
+<div class="demo-task-header"><span class="task-name">Task 3.4: VideoPlaceOrder</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="2">Episode 2</option><option value="4">Episode 4</option><option value="9">Episode 9</option><option value="13">Episode 13</option><option value="15">Episode 15</option><option value="18">Episode 18</option><option value="22">Episode 22</option><option value="25">Episode 25</option><option value="26">Episode 26</option><option value="31">Episode 31</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">watch the video carefully, then place the green cube on the second target it was previously placed on</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/reference/videoplaceorder/ep2_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/reference/videoplaceorder/ep2_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+</div>
+<div class="tab-content sim-demo-content" id="sim-imitation">
+<div class="sim-task-row" data-suite="imitation" data-task="movecube">
+<div class="demo-task-header"><span class="task-name">Task 4.1: MoveCube</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="1">Episode 1</option><option value="2">Episode 2</option><option value="3">Episode 3</option><option value="4">Episode 4</option><option value="5">Episode 5</option><option value="6">Episode 6</option><option value="8">Episode 8</option><option value="11">Episode 11</option><option value="12">Episode 12</option><option value="14">Episode 14</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">watch the video carefully, then move the cube to the target in the same manner as before</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/imitation/movecube/ep1_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/imitation/movecube/ep1_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+<div class="sim-task-row" data-suite="imitation" data-task="insertpeg">
+<div class="demo-task-header"><span class="task-name">Task 4.2: InsertPeg</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="1">Episode 1</option><option value="2">Episode 2</option><option value="3">Episode 3</option><option value="4">Episode 4</option><option value="5">Episode 5</option><option value="6">Episode 6</option><option value="7">Episode 7</option><option value="8">Episode 8</option><option value="40">Episode 40</option><option value="42">Episode 42</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">watch the video carefully, then grasp the same end of the same peg you&#x27;ve picked before and insert it into the same side of the box</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/imitation/insertpeg/ep1_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/imitation/insertpeg/ep1_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+<div class="sim-task-row" data-suite="imitation" data-task="patternlock">
+<div class="demo-task-header"><span class="task-name">Task 4.3: PatternLock</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="1">Episode 1</option><option value="2">Episode 2</option><option value="6">Episode 6</option><option value="7">Episode 7</option><option value="9">Episode 9</option><option value="10">Episode 10</option><option value="18">Episode 18</option><option value="19">Episode 19</option><option value="21">Episode 21</option><option value="25">Episode 25</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">watch the video carefully, then use the stick attached to the robot to retrace the same pattern</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/imitation/patternlock/ep1_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/imitation/patternlock/ep1_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+<div class="sim-task-row" data-suite="imitation" data-task="routestick">
+<div class="demo-task-header"><span class="task-name">Task 4.4: RouteStick</span><select class="sim-episode-selector" onchange="switchSimEpisode(this)"><option value="2">Episode 2</option><option value="3">Episode 3</option><option value="5">Episode 5</option><option value="6">Episode 6</option><option value="7">Episode 7</option><option value="9">Episode 9</option><option value="10">Episode 10</option><option value="13">Episode 13</option><option value="14">Episode 14</option><option value="17">Episode 17</option></select><span class="task-goal"><strong>Task Goal:</strong> <span class="sim-goal-text">watch the video carefully, then use the stick attached to the robot to navigate around the sticks on the table, following the same path</span></span></div>
+<div class="demo-video-row">
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05" selected>π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr">D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/imitation/routestick/ep2_pi05.mp4?v=2e416b4e" type="video/mp4"></video></div>
+<div class="demo-video-col"><select class="sim-model-selector" onchange="switchSimModel(this)"><option value="pi05">π₀.₅ (no memory)</option><option value="framesamp">FrameSamp</option><option value="tokendrop">TokenDrop</option><option value="hamlet">HAMLET</option><option value="ttt">TTT</option><option value="dnr" selected>D&R (ours)</option></select><video class="demo-video" autoplay muted loop playsinline controls preload="metadata"><source src="assets/videos/sim/imitation/routestick/ep2_dnr.mp4?v=2e416b4e" type="video/mp4"></video></div>
+</div></div>
+</div>
+
+<h2 class="sim-title">Real Robot Rollout Demos</h2>
+<p>Real-robot trials on a Franka Panda, filmed by an external camera, the front camera and the wrist camera (left to right), in real time. For each task we show the 10 trials reported in the paper's real-world table; pick a trial to compare the three methods on the same scene, stacked top to bottom. For the tasks conditioned on a video (TrackCube, RepickCube, DrawPattern), each clip first plays the video the policy watched (middle panel, red frame), then the rollout. <i>N</i> is the number of bottles to transfer (PutBottles), of cups (TrackCube: one cube hidden under one of three cups, or three cubes under three of four cups), of cubes on the table (RepickCube), or of moves in the pattern (DrawPattern).</p>
+<div class="tabs-container"><div class="task-tabs" id="real-demo-tabs">
+<button class="task-tab active" data-tab="real-putbottles">Task 1: PutBottles</button>
+<button class="task-tab" data-tab="real-trackcube">Task 2: TrackCube</button>
+<button class="task-tab" data-tab="real-repickcube">Task 3: RepickCube</button>
+<button class="task-tab" data-tab="real-drawpattern">Task 4: DrawPattern</button>
+</div></div>
+<div class="tab-content real-demo-content active" id="real-putbottles"><div class="sim-task-row real-task-panel" data-task="PutBottles" data-default="1-6">
+<div class="demo-task-header"><span class="task-name">PutBottles</span><span class="task-suite">Counting</span><span class="real-score">Success on these 10 trials: &pi;<sub>0.5</sub> (no memory) 0/10 &middot; FrameSamp 4/10 &middot; <b>D&amp;R (ours) 9/10</b></span></div>
+<div class="real-trials">
+<div class="real-trial-group"><span class="real-n"><i>N</i>=1</span><button class="real-trial" data-trial="1-2" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 2</button><button class="real-trial" data-trial="1-6" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 6</button><button class="real-trial" data-trial="1-7" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 7</button><button class="real-trial" data-trial="1-33" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 33</button><button class="real-trial" data-trial="1-35" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 35</button></div>
+<div class="real-trial-group"><span class="real-n"><i>N</i>=2</span><button class="real-trial" data-trial="2-3" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 3</button><button class="real-trial" data-trial="2-9" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 9</button><button class="real-trial" data-trial="2-13" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 13</button><button class="real-trial" data-trial="2-21" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 21</button><button class="real-trial" data-trial="2-23" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 23</button></div>
+</div><div class="real-goal"><strong>Task Goal:</strong> <span class="real-goal-text"></span><button class="real-sync" onclick="realRestart(this)" title="Restart the three clips together">&#8634; Play all from the start</button></div>
+<div class="real-stack"><div class="real-method" data-model="pi05"><div class="real-method-head"><span class="real-method-name">&pi;<sub>0.5</sub> (no memory)</span><span class="result-label"></span></div><video class="real-video" autoplay muted loop playsinline controls preload="none"></video></div><div class="real-method" data-model="framesamp"><div class="real-method-head"><span class="real-method-name">FrameSamp</span><span class="result-label"></span></div><video class="real-video" autoplay muted loop playsinline controls preload="none"></video></div><div class="real-method" data-model="dnr"><div class="real-method-head"><span class="real-method-name">D&amp;R (ours)</span><span class="result-label"></span></div><video class="real-video" autoplay muted loop playsinline controls preload="none"></video></div></div>
+</div></div>
+<div class="tab-content real-demo-content" id="real-trackcube"><div class="sim-task-row real-task-panel" data-task="TrackCube" data-default="3-17">
+<div class="demo-task-header"><span class="task-name">TrackCube</span><span class="task-suite">Permanence</span><span class="real-score">Success on these 10 trials: &pi;<sub>0.5</sub> (no memory) 2/10 &middot; FrameSamp 8/10 &middot; <b>D&amp;R (ours) 9/10</b></span></div>
+<div class="real-trials">
+<div class="real-trial-group"><span class="real-n"><i>N</i>=3</span><button class="real-trial" data-trial="1-1" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 1</button><button class="real-trial" data-trial="1-4" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 4</button><button class="real-trial" data-trial="1-6" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 6</button><button class="real-trial" data-trial="1-8" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 8</button><button class="real-trial" data-trial="1-15" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 15</button></div>
+<div class="real-trial-group"><span class="real-n"><i>N</i>=4</span><button class="real-trial" data-trial="3-1" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 1</button><button class="real-trial" data-trial="3-6" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 6</button><button class="real-trial" data-trial="3-8" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 8</button><button class="real-trial" data-trial="3-17" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 17</button><button class="real-trial" data-trial="3-25" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 25</button></div>
+</div><div class="real-goal"><strong>Task Goal:</strong> <span class="real-goal-text"></span><button class="real-sync" onclick="realRestart(this)" title="Restart the three clips together">&#8634; Play all from the start</button></div>
+<div class="real-stack"><div class="real-method" data-model="pi05"><div class="real-method-head"><span class="real-method-name">&pi;<sub>0.5</sub> (no memory)</span><span class="result-label"></span></div><video class="real-video" autoplay muted loop playsinline controls preload="none"></video></div><div class="real-method" data-model="framesamp"><div class="real-method-head"><span class="real-method-name">FrameSamp</span><span class="result-label"></span></div><video class="real-video" autoplay muted loop playsinline controls preload="none"></video></div><div class="real-method" data-model="dnr"><div class="real-method-head"><span class="real-method-name">D&amp;R (ours)</span><span class="result-label"></span></div><video class="real-video" autoplay muted loop playsinline controls preload="none"></video></div></div>
+</div></div>
+<div class="tab-content real-demo-content" id="real-repickcube"><div class="sim-task-row real-task-panel" data-task="RepickCube" data-default="3-2">
+<div class="demo-task-header"><span class="task-name">RepickCube</span><span class="task-suite">Reference</span><span class="real-score">Success on these 10 trials: &pi;<sub>0.5</sub> (no memory) 0/10 &middot; FrameSamp 6/10 &middot; <b>D&amp;R (ours) 9/10</b></span></div>
+<div class="real-trials">
+<div class="real-trial-group"><span class="real-n"><i>N</i>=3</span><button class="real-trial" data-trial="3-2" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 2</button><button class="real-trial" data-trial="3-13" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 13</button><button class="real-trial" data-trial="3-16" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 16</button><button class="real-trial" data-trial="3-19" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 19</button><button class="real-trial" data-trial="3-21" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 21</button></div>
+<div class="real-trial-group"><span class="real-n"><i>N</i>=4</span><button class="real-trial" data-trial="4-24" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 24</button><button class="real-trial" data-trial="4-28" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 28</button><button class="real-trial" data-trial="4-32" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 32</button><button class="real-trial" data-trial="4-35" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 35</button><button class="real-trial" data-trial="4-36" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 36</button></div>
+</div><div class="real-goal"><strong>Task Goal:</strong> <span class="real-goal-text"></span><button class="real-sync" onclick="realRestart(this)" title="Restart the three clips together">&#8634; Play all from the start</button></div>
+<div class="real-stack"><div class="real-method" data-model="pi05"><div class="real-method-head"><span class="real-method-name">&pi;<sub>0.5</sub> (no memory)</span><span class="result-label"></span></div><video class="real-video" autoplay muted loop playsinline controls preload="none"></video></div><div class="real-method" data-model="framesamp"><div class="real-method-head"><span class="real-method-name">FrameSamp</span><span class="result-label"></span></div><video class="real-video" autoplay muted loop playsinline controls preload="none"></video></div><div class="real-method" data-model="dnr"><div class="real-method-head"><span class="real-method-name">D&amp;R (ours)</span><span class="result-label"></span></div><video class="real-video" autoplay muted loop playsinline controls preload="none"></video></div></div>
+</div></div>
+<div class="tab-content real-demo-content" id="real-drawpattern"><div class="sim-task-row real-task-panel" data-task="DrawPattern" data-default="2-10">
+<div class="demo-task-header"><span class="task-name">DrawPattern</span><span class="task-suite">Imitation</span><span class="real-score">Success on these 10 trials: &pi;<sub>0.5</sub> (no memory) 1/10 &middot; FrameSamp 4/10 &middot; <b>D&amp;R (ours) 8/10</b></span></div>
+<div class="real-trials">
+<div class="real-trial-group"><span class="real-n"><i>N</i>=2</span><button class="real-trial" data-trial="2-3" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 3</button><button class="real-trial" data-trial="2-10" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 10</button></div>
+<div class="real-trial-group"><span class="real-n"><i>N</i>=3</span><button class="real-trial" data-trial="3-2" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 2</button><button class="real-trial" data-trial="3-3" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 3</button><button class="real-trial" data-trial="3-10" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 10</button><button class="real-trial" data-trial="3-11" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 11</button></div>
+<div class="real-trial-group"><span class="real-n"><i>N</i>=4</span><button class="real-trial" data-trial="4-3" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 3</button><button class="real-trial" data-trial="4-6" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 6</button><button class="real-trial" data-trial="4-8" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 8</button><button class="real-trial" data-trial="4-10" onclick="realPick(this)"><span class="real-ep-long">Episode</span><span class="real-ep-short">Ep</span> 10</button></div>
+</div><div class="real-goal"><strong>Task Goal:</strong> <span class="real-goal-text"></span><button class="real-sync" onclick="realRestart(this)" title="Restart the three clips together">&#8634; Play all from the start</button></div>
+<div class="real-stack"><div class="real-method" data-model="pi05"><div class="real-method-head"><span class="real-method-name">&pi;<sub>0.5</sub> (no memory)</span><span class="result-label"></span></div><video class="real-video" autoplay muted loop playsinline controls preload="none"></video></div><div class="real-method" data-model="framesamp"><div class="real-method-head"><span class="real-method-name">FrameSamp</span><span class="result-label"></span></div><video class="real-video" autoplay muted loop playsinline controls preload="none"></video></div><div class="real-method" data-model="dnr"><div class="real-method-head"><span class="real-method-name">D&amp;R (ours)</span><span class="result-label"></span></div><video class="real-video" autoplay muted loop playsinline controls preload="none"></video></div></div>
+</div></div>
+
+
+
+<h2>BibTeX</h2>
+<pre>@inproceedings{anonymous2027divide,
+  title     = {Divide-and-Remember: Recursive Action-Relevant Memory for Long-Horizon VLA Policies},
+  author    = {Anonymous},
+  booktitle = {Under review at the International Conference on Learning Representations (ICLR)},
+  year      = {2027}
+}</pre>
+
+<footer>Anonymous project page for double-blind review.</footer>
+</div>
+<script>
+  // Simulation Rollout Demos (robomme.github.io behaviour): goal text per episode, failure list, episode/model switching.
+  const VIDEO_ROOT = "assets/videos/sim", VIDEO_VER = "2e416b4e";
+  const simEpisodeData = {
+ "counting": {
+  "binfill": {
+   "1": "put one red cube into the bin, then press the button to stop",
+   "2": "put one green cube into the bin, then press the button to stop",
+   "5": "put one green cube into the bin, then press the button to stop",
+   "9": "put three green cubes into the bin, then press the button to stop",
+   "15": "put three red cubes into the bin, then press the button to stop",
+   "17": "put one red cube into the bin, then press the button to stop",
+   "18": "put one green cube into the bin, then press the button to stop",
+   "24": "put two blue cubes and one green cube into the bin, then press the button to stop",
+   "26": "put one green cube into the bin, then press the button to stop",
+   "29": "put one blue cube into the bin, then press the button to stop"
+  },
+  "pickxtimes": {
+   "2": "pick up the green cube and place it on the target, then press the button to stop",
+   "3": "pick up the blue cube and place it on the target, then press the button to stop",
+   "5": "pick up the blue cube and place it on the target, repeating this action two times, then press the button to stop",
+   "6": "pick up the red cube and place it on the target, repeating this action two times, then press the button to stop",
+   "7": "pick up the green cube and place it on the target, then press the button to stop",
+   "9": "pick up the green cube and place it on the target, repeating this action two times, then press the button to stop",
+   "10": "pick up the blue cube and place it on the target, repeating this action two times, then press the button to stop",
+   "11": "pick up the red cube and place it on the target, then press the button to stop",
+   "13": "pick up the green cube and place it on the target, repeating this action three times, then press the button to stop",
+   "14": "pick up the green cube and place it on the target, then press the button to stop"
+  },
+  "swingxtimes": {
+   "1": "pick up the green cube, move it to the top of the right-side target, then move it to the top of the left-side target, repeating this back-and-forth motion two times, finally press the button to stop",
+   "2": "pick up the blue cube, move it to the top of the right-side target, then move it to the top of the left-side target, repeating this back-and-forth motion three times, finally press the button to stop",
+   "3": "pick up the blue cube, move it to the top of the right-side target, then move it to the top of the left-side target, repeating this back-and-forth motion two times, finally press the button to stop",
+   "4": "pick up the green cube, move it to the top of the right-side target, then move it to the top of the left-side target, repeating this back-and-forth motion three times, finally press the button to stop",
+   "5": "pick up the blue cube, move it to the top of the right-side target, then move it to the top of the left-side target, repeating this back-and-forth motion three times, finally press the button to stop",
+   "6": "pick up the green cube, move it to the top of the right-side target, then put it down on the left-side target, finally press the button to stop",
+   "7": "pick up the red cube, move it to the top of the right-side target, then put it down on the left-side target, finally press the button to stop",
+   "8": "pick up the red cube, move it to the top of the right-side target, then move it to the top of the left-side target, repeating this back-and-forth motion three times, finally press the button to stop",
+   "9": "pick up the blue cube, move it to the top of the right-side target, then move it to the top of the left-side target, repeating this back-and-forth motion three times, finally press the button to stop",
+   "10": "pick up the red cube, move it to the top of the right-side target, then move it to the top of the left-side target, repeating this back-and-forth motion three times, finally press the button to stop"
+  },
+  "stopcube": {
+   "1": "press the button to stop the cube just as it reaches the target for the fourth time",
+   "2": "press the button to stop the cube just as it reaches the target for the fourth time",
+   "3": "press the button to stop the cube just as it reaches the target for the second time",
+   "4": "press the button to stop the cube just as it reaches the target for the second time",
+   "6": "press the button to stop the cube just as it reaches the target for the second time",
+   "12": "press the button to stop the cube just as it reaches the target for the fourth time",
+   "19": "press the button to stop the cube just as it reaches the target for the fifth time",
+   "22": "press the button to stop the cube just as it reaches the target for the fifth time",
+   "24": "press the button to stop the cube just as it reaches the target for the third time",
+   "26": "press the button to stop the cube just as it reaches the target for the fourth time"
+  }
+ },
+ "permanence": {
+  "videounmask": {
+   "1": "watch the video carefully, then pick up the container hiding the green cube",
+   "5": "watch the video carefully, then pick up the container hiding the red cube",
+   "6": "watch the video carefully, then pick up the container hiding the blue cube",
+   "9": "watch the video carefully, then pick up the container hiding the red cube",
+   "10": "watch the video carefully, then pick up the container hiding the red cube",
+   "11": "watch the video carefully, then pick up the container hiding the green cube",
+   "17": "watch the video carefully, then pick up the container hiding the red cube",
+   "18": "watch the video carefully, then pick up the container hiding the green cube",
+   "23": "watch the video carefully, then pick up the container hiding the red cube",
+   "24": "watch the video carefully, then pick up the container hiding the blue cube, finally pick up another container hiding the red cube"
+  },
+  "buttonunmask": {
+   "3": "first press the button, then pick up the container hiding the green cube",
+   "8": "first press the button, then pick up the container hiding the red cube, finally pick up another container hiding the green cube",
+   "10": "first press the button, then pick up the container hiding the green cube",
+   "15": "first press the button, then pick up the container hiding the green cube",
+   "19": "first press the button, then pick up the container hiding the blue cube",
+   "25": "first press the button, then pick up the container hiding the green cube",
+   "29": "first press the button, then pick up the container hiding the green cube",
+   "30": "first press the button, then pick up the container hiding the green cube",
+   "37": "first press the button, then pick up the container hiding the red cube",
+   "38": "first press the button, then pick up the container hiding the green cube"
+  },
+  "videounmaskswap": {
+   "1": "watch the video carefully, then pick up the container hiding the green cube, finally pick up another container hiding the blue cube",
+   "2": "watch the video carefully, then pick up the container hiding the green cube",
+   "7": "watch the video carefully, then pick up the container hiding the blue cube",
+   "9": "watch the video carefully, then pick up the container hiding the blue cube",
+   "11": "watch the video carefully, then pick up the container hiding the green cube",
+   "14": "watch the video carefully, then pick up the container hiding the blue cube",
+   "19": "watch the video carefully, then pick up the container hiding the green cube",
+   "20": "watch the video carefully, then pick up the container hiding the green cube, finally pick up another container hiding the red cube",
+   "24": "watch the video carefully, then pick up the container hiding the green cube, finally pick up another container hiding the blue cube",
+   "25": "watch the video carefully, then pick up the container hiding the blue cube"
+  },
+  "buttonunmaskswap": {
+   "1": "first press both buttons on the table, then pick up the container hiding the blue cube, finally pick up another container hiding the green cube",
+   "2": "first press both buttons on the table, then pick up the container hiding the red cube, finally pick up another container hiding the green cube",
+   "5": "first press both buttons on the table, then pick up the container hiding the green cube",
+   "9": "first press both buttons on the table, then pick up the container hiding the green cube",
+   "12": "first press both buttons on the table, then pick up the container hiding the blue cube, finally pick up another container hiding the green cube",
+   "13": "first press both buttons on the table, then pick up the container hiding the red cube",
+   "15": "first press both buttons on the table, then pick up the container hiding the blue cube",
+   "35": "first press both buttons on the table, then pick up the container hiding the blue cube",
+   "37": "first press both buttons on the table, then pick up the container hiding the green cube",
+   "48": "first press both buttons on the table, then pick up the container hiding the green cube, finally pick up another container hiding the red cube"
+  }
+ },
+ "reference": {
+  "pickhighlight": {
+   "11": "first press the button, then pick up all cubes that have been highlighteted with white areas on the table",
+   "15": "first press the button, then pick up all cubes that have been highlighteted with white areas on the table",
+   "17": "first press the button, then pick up all cubes that have been highlighteted with white areas on the table",
+   "19": "first press the button, then pick up all cubes that have been highlighteted with white areas on the table",
+   "21": "first press the button, then pick up all cubes that have been highlighteted with white areas on the table",
+   "23": "first press the button, then pick up all cubes that have been highlighteted with white areas on the table",
+   "29": "first press the button, then pick up all cubes that have been highlighteted with white areas on the table",
+   "30": "first press the button, then pick up all cubes that have been highlighteted with white areas on the table",
+   "35": "first press the button, then pick up all cubes that have been highlighteted with white areas on the table",
+   "39": "first press the button, then pick up all cubes that have been highlighteted with white areas on the table"
+  },
+  "videorepick": {
+   "1": "watch the video carefully, then repeatedly pick up and put down the same block that was previously picked up for three times, finally put it down and press the button to stop",
+   "2": "watch the video carefully, then pick up the same block that was previously picked up again, finally put it down and press the button to stop",
+   "6": "watch the video carefully, then repeatedly pick up and put down the same block that was previously picked up for three times, finally put it down and press the button to stop",
+   "11": "watch the video carefully, then pick up the same block that was previously picked up again, finally put it down and press the button to stop",
+   "13": "watch the video carefully, then repeatedly pick up and put down the same block that was previously picked up for three times, finally put it down and press the button to stop",
+   "14": "watch the video carefully, then pick up the same block that was previously picked up again, finally put it down and press the button to stop",
+   "17": "watch the video carefully, then repeatedly pick up and put down the same block that was previously picked up for three times, finally put it down and press the button to stop",
+   "25": "watch the video carefully, then repeatedly pick up and put down the same block that was previously picked up for two times, finally put it down and press the button to stop",
+   "29": "watch the video carefully, then pick up the same block that was previously picked up again, finally put it down and press the button to stop",
+   "34": "watch the video carefully, then repeatedly pick up and put down the same block that was previously picked up for two times, finally put it down and press the button to stop"
+  },
+  "videoplacebutton": {
+   "1": "watch the video carefully, then place the green cube on the target right after the button was pressed",
+   "4": "watch the video carefully, then place the green cube on the target right before the button was pressed",
+   "15": "watch the video carefully, then place the red cube on the target right after the button was pressed",
+   "17": "watch the video carefully, then place the red cube on the target right after the button was pressed",
+   "20": "watch the video carefully, then place the green cube on the target right after the button was pressed",
+   "21": "watch the video carefully, then place the green cube on the target right after the button was pressed",
+   "25": "watch the video carefully, then place the green cube on the target right before the button was pressed",
+   "26": "watch the video carefully, then place the green cube on the target right after the button was pressed",
+   "27": "watch the video carefully, then place the blue cube on the target right before the button was pressed",
+   "30": "watch the video carefully, then place the green cube on the target right after the button was pressed"
+  },
+  "videoplaceorder": {
+   "2": "watch the video carefully, then place the green cube on the second target it was previously placed on",
+   "4": "watch the video carefully, then place the blue cube on the second target it was previously placed on",
+   "9": "watch the video carefully, then place the blue cube on the first target it was previously placed on",
+   "13": "watch the video carefully, then place the blue cube on the second target it was previously placed on",
+   "15": "watch the video carefully, then place the red cube on the first target it was previously placed on",
+   "18": "watch the video carefully, then place the blue cube on the third target it was previously placed on",
+   "22": "watch the video carefully, then place the green cube on the second target it was previously placed on",
+   "25": "watch the video carefully, then place the green cube on the second target it was previously placed on",
+   "26": "watch the video carefully, then place the red cube on the first target it was previously placed on",
+   "31": "watch the video carefully, then place the green cube on the second target it was previously placed on"
+  }
+ },
+ "imitation": {
+  "movecube": {
+   "1": "watch the video carefully, then move the cube to the target in the same manner as before",
+   "2": "watch the video carefully, then move the cube to the target in the same manner as before",
+   "3": "watch the video carefully, then move the cube to the target in the same manner as before",
+   "4": "watch the video carefully, then move the cube to the target in the same manner as before",
+   "5": "watch the video carefully, then move the cube to the target in the same manner as before",
+   "6": "watch the video carefully, then move the cube to the target in the same manner as before",
+   "8": "watch the video carefully, then move the cube to the target in the same manner as before",
+   "11": "watch the video carefully, then move the cube to the target in the same manner as before",
+   "12": "watch the video carefully, then move the cube to the target in the same manner as before",
+   "14": "watch the video carefully, then move the cube to the target in the same manner as before"
+  },
+  "insertpeg": {
+   "1": "watch the video carefully, then grasp the same end of the same peg you've picked before and insert it into the same side of the box",
+   "2": "watch the video carefully, then grasp the same end of the same peg you've picked before and insert it into the same side of the box",
+   "3": "watch the video carefully, then grasp the same end of the same peg you've picked before and insert it into the same side of the box",
+   "4": "watch the video carefully, then grasp the same end of the same peg you've picked before and insert it into the same side of the box",
+   "5": "watch the video carefully, then grasp the same end of the same peg you've picked before and insert it into the same side of the box",
+   "6": "watch the video carefully, then grasp the same end of the same peg you've picked before and insert it into the same side of the box",
+   "7": "watch the video carefully, then grasp the same end of the same peg you've picked before and insert it into the same side of the box",
+   "8": "watch the video carefully, then grasp the same end of the same peg you've picked before and insert it into the same side of the box",
+   "40": "watch the video carefully, then grasp the same end of the same peg you've picked before and insert it into the same side of the box",
+   "42": "watch the video carefully, then grasp the same end of the same peg you've picked before and insert it into the same side of the box"
+  },
+  "patternlock": {
+   "1": "watch the video carefully, then use the stick attached to the robot to retrace the same pattern",
+   "2": "watch the video carefully, then use the stick attached to the robot to retrace the same pattern",
+   "6": "watch the video carefully, then use the stick attached to the robot to retrace the same pattern",
+   "7": "watch the video carefully, then use the stick attached to the robot to retrace the same pattern",
+   "9": "watch the video carefully, then use the stick attached to the robot to retrace the same pattern",
+   "10": "watch the video carefully, then use the stick attached to the robot to retrace the same pattern",
+   "18": "watch the video carefully, then use the stick attached to the robot to retrace the same pattern",
+   "19": "watch the video carefully, then use the stick attached to the robot to retrace the same pattern",
+   "21": "watch the video carefully, then use the stick attached to the robot to retrace the same pattern",
+   "25": "watch the video carefully, then use the stick attached to the robot to retrace the same pattern"
+  },
+  "routestick": {
+   "2": "watch the video carefully, then use the stick attached to the robot to navigate around the sticks on the table, following the same path",
+   "3": "watch the video carefully, then use the stick attached to the robot to navigate around the sticks on the table, following the same path",
+   "5": "watch the video carefully, then use the stick attached to the robot to navigate around the sticks on the table, following the same path",
+   "6": "watch the video carefully, then use the stick attached to the robot to navigate around the sticks on the table, following the same path",
+   "7": "watch the video carefully, then use the stick attached to the robot to navigate around the sticks on the table, following the same path",
+   "9": "watch the video carefully, then use the stick attached to the robot to navigate around the sticks on the table, following the same path",
+   "10": "watch the video carefully, then use the stick attached to the robot to navigate around the sticks on the table, following the same path",
+   "13": "watch the video carefully, then use the stick attached to the robot to navigate around the sticks on the table, following the same path",
+   "14": "watch the video carefully, then use the stick attached to the robot to navigate around the sticks on the table, following the same path",
+   "17": "watch the video carefully, then use the stick attached to the robot to navigate around the sticks on the table, following the same path"
+  }
+ }
+};
+  const videoResults = {
+ "assets/videos/sim/counting/binfill/ep2_framesamp.mp4": false,
+ "assets/videos/sim/counting/binfill/ep9_pi05.mp4": false,
+ "assets/videos/sim/counting/binfill/ep9_tokendrop.mp4": false,
+ "assets/videos/sim/counting/binfill/ep9_hamlet.mp4": false,
+ "assets/videos/sim/counting/binfill/ep9_ttt.mp4": false,
+ "assets/videos/sim/counting/binfill/ep15_pi05.mp4": false,
+ "assets/videos/sim/counting/binfill/ep15_framesamp.mp4": false,
+ "assets/videos/sim/counting/binfill/ep15_tokendrop.mp4": false,
+ "assets/videos/sim/counting/binfill/ep15_hamlet.mp4": false,
+ "assets/videos/sim/counting/binfill/ep15_ttt.mp4": false,
+ "assets/videos/sim/counting/binfill/ep24_pi05.mp4": false,
+ "assets/videos/sim/counting/binfill/ep24_framesamp.mp4": false,
+ "assets/videos/sim/counting/binfill/ep24_tokendrop.mp4": false,
+ "assets/videos/sim/counting/binfill/ep24_hamlet.mp4": false,
+ "assets/videos/sim/counting/binfill/ep24_ttt.mp4": false,
+ "assets/videos/sim/counting/binfill/ep29_tokendrop.mp4": false,
+ "assets/videos/sim/counting/pickxtimes/ep5_pi05.mp4": false,
+ "assets/videos/sim/counting/pickxtimes/ep5_tokendrop.mp4": false,
+ "assets/videos/sim/counting/pickxtimes/ep6_pi05.mp4": false,
+ "assets/videos/sim/counting/pickxtimes/ep6_ttt.mp4": false,
+ "assets/videos/sim/counting/pickxtimes/ep9_pi05.mp4": false,
+ "assets/videos/sim/counting/pickxtimes/ep9_tokendrop.mp4": false,
+ "assets/videos/sim/counting/pickxtimes/ep10_pi05.mp4": false,
+ "assets/videos/sim/counting/pickxtimes/ep10_tokendrop.mp4": false,
+ "assets/videos/sim/counting/pickxtimes/ep10_ttt.mp4": false,
+ "assets/videos/sim/counting/pickxtimes/ep13_pi05.mp4": false,
+ "assets/videos/sim/counting/pickxtimes/ep13_tokendrop.mp4": false,
+ "assets/videos/sim/counting/pickxtimes/ep13_hamlet.mp4": false,
+ "assets/videos/sim/counting/pickxtimes/ep13_ttt.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep1_pi05.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep1_tokendrop.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep1_ttt.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep2_pi05.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep2_tokendrop.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep3_pi05.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep3_tokendrop.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep4_pi05.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep4_tokendrop.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep4_hamlet.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep4_ttt.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep5_pi05.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep5_tokendrop.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep5_ttt.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep8_tokendrop.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep8_hamlet.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep8_ttt.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep9_ttt.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep10_pi05.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep10_tokendrop.mp4": false,
+ "assets/videos/sim/counting/swingxtimes/ep10_ttt.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep1_pi05.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep1_framesamp.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep1_tokendrop.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep1_hamlet.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep1_ttt.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep2_pi05.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep2_framesamp.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep2_tokendrop.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep2_hamlet.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep2_ttt.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep3_ttt.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep4_pi05.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep4_framesamp.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep4_tokendrop.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep4_ttt.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep6_pi05.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep6_tokendrop.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep6_hamlet.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep6_ttt.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep12_pi05.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep12_tokendrop.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep12_hamlet.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep12_ttt.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep19_pi05.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep19_framesamp.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep19_tokendrop.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep19_hamlet.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep19_ttt.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep22_pi05.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep22_tokendrop.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep22_ttt.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep24_pi05.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep24_framesamp.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep24_ttt.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep26_pi05.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep26_tokendrop.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep26_hamlet.mp4": false,
+ "assets/videos/sim/counting/stopcube/ep26_ttt.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep1_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep1_hamlet.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep5_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep5_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep5_hamlet.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep6_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep9_framesamp.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep9_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep9_ttt.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep10_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep11_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep11_framesamp.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep11_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep11_hamlet.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep11_ttt.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep17_hamlet.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep17_ttt.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep18_framesamp.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep18_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep18_ttt.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep23_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep23_ttt.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep24_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep24_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep24_hamlet.mp4": false,
+ "assets/videos/sim/permanence/videounmask/ep24_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep3_pi05.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep3_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep3_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep8_pi05.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep8_framesamp.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep8_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep8_hamlet.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep8_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep10_pi05.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep10_framesamp.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep10_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep15_hamlet.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep19_pi05.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep19_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep19_hamlet.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep19_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep25_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep29_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep29_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep30_framesamp.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep30_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep30_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep37_pi05.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep37_framesamp.mp4": false,
+ "assets/videos/sim/permanence/buttonunmask/ep38_ttt.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep1_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep1_framesamp.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep1_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep1_hamlet.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep1_ttt.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep2_framesamp.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep2_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep2_hamlet.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep7_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep7_framesamp.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep7_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep7_hamlet.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep7_ttt.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep9_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep9_framesamp.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep9_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep9_hamlet.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep11_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep11_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep11_hamlet.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep11_ttt.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep14_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep19_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep19_framesamp.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep19_ttt.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep20_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep20_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep20_hamlet.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep20_ttt.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep24_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep24_framesamp.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep24_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep24_ttt.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep25_pi05.mp4": false,
+ "assets/videos/sim/permanence/videounmaskswap/ep25_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep1_pi05.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep1_framesamp.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep1_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep1_hamlet.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep1_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep1_dnr.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep2_pi05.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep2_framesamp.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep2_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep2_hamlet.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep2_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep2_dnr.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep5_hamlet.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep5_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep9_hamlet.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep9_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep12_pi05.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep12_framesamp.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep12_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep12_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep13_framesamp.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep13_hamlet.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep13_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep15_pi05.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep15_framesamp.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep15_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep15_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep35_pi05.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep35_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep37_pi05.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep37_framesamp.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep37_tokendrop.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep37_hamlet.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep37_ttt.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep48_pi05.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep48_framesamp.mp4": false,
+ "assets/videos/sim/permanence/buttonunmaskswap/ep48_ttt.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep11_pi05.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep11_framesamp.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep11_tokendrop.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep11_hamlet.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep11_ttt.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep15_pi05.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep15_tokendrop.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep15_hamlet.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep15_ttt.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep17_pi05.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep17_framesamp.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep17_tokendrop.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep17_hamlet.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep17_ttt.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep19_pi05.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep19_framesamp.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep19_tokendrop.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep19_hamlet.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep19_ttt.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep21_pi05.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep21_ttt.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep23_pi05.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep23_framesamp.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep23_tokendrop.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep23_hamlet.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep23_ttt.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep29_tokendrop.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep29_hamlet.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep35_pi05.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep35_tokendrop.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep35_ttt.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep39_pi05.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep39_tokendrop.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep39_hamlet.mp4": false,
+ "assets/videos/sim/reference/pickhighlight/ep39_ttt.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep1_pi05.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep1_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep1_ttt.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep2_pi05.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep2_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep2_ttt.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep6_pi05.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep6_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep6_ttt.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep11_pi05.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep11_framesamp.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep11_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep11_hamlet.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep11_ttt.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep13_pi05.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep13_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep13_hamlet.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep13_ttt.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep14_pi05.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep14_ttt.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep17_pi05.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep17_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep17_ttt.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep25_pi05.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep25_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep25_ttt.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep29_pi05.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep29_framesamp.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep29_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep29_hamlet.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep29_ttt.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep34_pi05.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep34_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep34_hamlet.mp4": false,
+ "assets/videos/sim/reference/videorepick/ep34_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep1_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep1_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep1_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep4_framesamp.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep4_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep4_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep15_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep15_hamlet.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep15_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep17_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep17_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep17_hamlet.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep17_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep20_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep21_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep25_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep25_hamlet.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep25_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep26_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep27_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep27_framesamp.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep27_hamlet.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep27_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep30_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplacebutton/ep30_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep2_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep2_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep2_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep4_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep4_framesamp.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep4_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep9_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep9_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep9_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep13_framesamp.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep13_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep15_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep15_framesamp.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep18_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep18_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep18_hamlet.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep18_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep22_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep22_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep22_hamlet.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep25_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep25_hamlet.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep25_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep26_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep26_hamlet.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep26_ttt.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep31_pi05.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep31_tokendrop.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep31_hamlet.mp4": false,
+ "assets/videos/sim/reference/videoplaceorder/ep31_ttt.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep1_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep1_ttt.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep2_pi05.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep2_ttt.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep3_pi05.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep3_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep4_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep4_hamlet.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep4_ttt.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep5_pi05.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep5_hamlet.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep6_pi05.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep8_pi05.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep8_framesamp.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep8_hamlet.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep8_ttt.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep11_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep11_ttt.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep12_pi05.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep12_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep12_hamlet.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep12_ttt.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep14_pi05.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep14_framesamp.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep14_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep14_hamlet.mp4": false,
+ "assets/videos/sim/imitation/movecube/ep14_ttt.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep1_pi05.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep1_framesamp.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep1_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep1_hamlet.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep1_ttt.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep1_dnr.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep2_pi05.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep2_framesamp.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep2_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep2_hamlet.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep2_ttt.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep2_dnr.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep3_pi05.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep3_framesamp.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep3_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep3_hamlet.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep3_ttt.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep3_dnr.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep4_pi05.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep4_framesamp.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep4_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep4_hamlet.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep4_ttt.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep4_dnr.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep5_pi05.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep5_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep5_hamlet.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep5_ttt.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep5_dnr.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep6_pi05.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep6_framesamp.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep6_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep6_hamlet.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep6_ttt.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep6_dnr.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep7_pi05.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep7_framesamp.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep7_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep7_hamlet.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep7_ttt.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep7_dnr.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep8_pi05.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep8_framesamp.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep8_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep8_hamlet.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep8_ttt.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep8_dnr.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep40_pi05.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep40_framesamp.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep40_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep40_hamlet.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep40_ttt.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep42_pi05.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep42_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep42_hamlet.mp4": false,
+ "assets/videos/sim/imitation/insertpeg/ep42_ttt.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep1_pi05.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep1_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep1_hamlet.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep1_ttt.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep2_pi05.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep2_framesamp.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep2_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep2_hamlet.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep2_ttt.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep6_pi05.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep7_pi05.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep7_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep7_hamlet.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep7_ttt.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep9_pi05.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep9_framesamp.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep9_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep9_hamlet.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep9_ttt.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep10_pi05.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep10_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep10_hamlet.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep10_ttt.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep18_pi05.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep18_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep18_hamlet.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep18_ttt.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep19_pi05.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep19_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep19_hamlet.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep19_ttt.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep21_pi05.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep21_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep21_hamlet.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep21_ttt.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep25_pi05.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep25_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep25_hamlet.mp4": false,
+ "assets/videos/sim/imitation/patternlock/ep25_ttt.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep2_pi05.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep2_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep2_hamlet.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep2_ttt.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep3_pi05.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep3_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep3_hamlet.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep3_ttt.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep5_pi05.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep5_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep5_hamlet.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep5_ttt.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep6_pi05.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep6_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep6_hamlet.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep6_ttt.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep7_pi05.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep7_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep7_hamlet.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep7_ttt.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep9_pi05.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep9_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep9_hamlet.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep9_ttt.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep10_pi05.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep10_framesamp.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep10_ttt.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep13_pi05.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep13_framesamp.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep13_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep13_hamlet.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep13_ttt.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep14_pi05.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep14_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep14_hamlet.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep14_ttt.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep17_pi05.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep17_tokendrop.mp4": false,
+ "assets/videos/sim/imitation/routestick/ep17_hamlet.mp4": false
+};   // paths that FAILED; everything else shows Success
+  function videoPath(suite, task, episode, model) { return `${VIDEO_ROOT}/${suite}/${task}/ep${episode}_${model}.mp4?v=${VIDEO_VER}`; }
+  function getResultLabel(path) {
+    path = path.split('?')[0];
+    return videoResults[path] === false ? '<span class="result-label failure">Failure</span>' : '<span class="result-label success">Success</span>';
+  }
+  function updateResultLabel(video, path) {
+    let c = video.nextElementSibling;
+    if (!c || !c.classList.contains('result-label-container')) {
+      c = document.createElement('div'); c.className = 'result-label-container'; video.parentNode.insertBefore(c, video.nextSibling);
+    }
+    c.innerHTML = getResultLabel(path);
+  }
+  function setVideo(col, path) {
+    const video = col.querySelector('video'); video.querySelector('source').src = path; video.load();
+    video.play().catch(() => {}); updateResultLabel(video, path);
+  }
+  function switchSimEpisode(sel) {
+    const row = sel.closest('.sim-task-row'), suite = row.dataset.suite, task = row.dataset.task, ep = sel.value;
+    const g = row.querySelector('.sim-goal-text');
+    if (g && simEpisodeData[suite] && simEpisodeData[suite][task] && simEpisodeData[suite][task][ep]) g.textContent = simEpisodeData[suite][task][ep];
+    row.querySelectorAll('.demo-video-col').forEach(col => setVideo(col, videoPath(suite, task, ep, col.querySelector('.sim-model-selector').value)));
+  }
+  function switchSimModel(sel) {
+    const col = sel.closest('.demo-video-col'), row = sel.closest('.sim-task-row');
+    const ep = row.querySelector('.sim-episode-selector').value;
+    setVideo(col, videoPath(row.dataset.suite, row.dataset.task, ep, sel.value));
+  }
+  document.querySelectorAll('.demo-video').forEach(v => updateResultLabel(v, v.querySelector('source').getAttribute('src')));
+  document.querySelectorAll('#sim-demo-tabs .task-tab').forEach(tab => tab.addEventListener('click', function () {
+    document.querySelectorAll('#sim-demo-tabs .task-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.sim-demo-content').forEach(c => c.classList.remove('active'));
+    this.classList.add('active'); document.getElementById(this.dataset.tab).classList.add('active');
+    document.querySelectorAll('.sim-demo-content:not(.active) video').forEach(v => v.pause());
+    document.querySelectorAll('.sim-demo-content.active video').forEach(v => { v.currentTime = 0; v.play().catch(() => {}); });
+  }));
+</script>
+<script>
+  // Real Robot Rollout Demos: selected trials per task; the three methods of the chosen trial are stacked. Only the visible tab
+  // loads its clips (preload=none until shown).
+  const REAL_ROOT = "assets/videos/real", REAL_VER = "2e416b4e";
+  const realData = {"PutBottles": {"1-2": {"key": "put_bottle_n1", "ep": 2, "n": 1, "goal": "pick one bottle from the basket and place it into the bin.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "1-6": {"key": "put_bottle_n1", "ep": 6, "n": 1, "goal": "pick one bottle from the basket and place it into the bin.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "1-7": {"key": "put_bottle_n1", "ep": 7, "n": 1, "goal": "pick one bottle from the basket and place it into the bin.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "1-33": {"key": "put_bottle_n1", "ep": 33, "n": 1, "goal": "pick one bottle from the basket and place it into the bin.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "1-35": {"key": "put_bottle_n1", "ep": 35, "n": 1, "goal": "pick one bottle from the basket and place it into the bin.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "2-3": {"key": "put_bottle_n2", "ep": 3, "n": 2, "goal": "pick two bottles from the basket and place them into the bin.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "2-9": {"key": "put_bottle_n2", "ep": 9, "n": 2, "goal": "pick two bottles from the basket and place them into the bin.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "2-13": {"key": "put_bottle_n2", "ep": 13, "n": 2, "goal": "pick two bottles from the basket and place them into the bin.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "2-21": {"key": "put_bottle_n2", "ep": 21, "n": 2, "goal": "pick two bottles from the basket and place them into the bin.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "2-23": {"key": "put_bottle_n2", "ep": 23, "n": 2, "goal": "pick two bottles from the basket and place them into the bin.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "fail"}}}, "TrackCube": {"1-1": {"key": "track_cube_n1", "ep": 1, "n": 3, "goal": "watch the video carefully, then pick up the cup that hides the blue cube.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "1-4": {"key": "track_cube_n1", "ep": 4, "n": 3, "goal": "watch the video carefully, then pick up the cup that hides the blue cube.", "outcome": {"pi05": "success", "framesamp": "success", "dnr": "success"}}, "1-6": {"key": "track_cube_n1", "ep": 6, "n": 3, "goal": "watch the video carefully, then pick up the cup that hides the yellow cube.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "1-8": {"key": "track_cube_n1", "ep": 8, "n": 3, "goal": "watch the video carefully, then pick up the cup that hides the yellow cube.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "1-15": {"key": "track_cube_n1", "ep": 15, "n": 3, "goal": "watch the video carefully, then pick up the cup that hides the red cube.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "fail"}}, "3-1": {"key": "track_cube_n3", "ep": 1, "n": 4, "goal": "watch the video carefully, then pick up the cup that hides the yellow cube.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "3-6": {"key": "track_cube_n3", "ep": 6, "n": 4, "goal": "watch the video carefully, then pick up the cup that hides the blue cube.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "3-8": {"key": "track_cube_n3", "ep": 8, "n": 4, "goal": "watch the video carefully, then pick up the cup that hides the red cube.", "outcome": {"pi05": "success", "framesamp": "success", "dnr": "success"}}, "3-17": {"key": "track_cube_n3", "ep": 17, "n": 4, "goal": "watch the video carefully, then pick up the cup that hides the red cube.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "3-25": {"key": "track_cube_n3", "ep": 25, "n": 4, "goal": "watch the video carefully, then pick up the cup that hides the yellow cube.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}}, "RepickCube": {"3-2": {"key": "repick_cube_n3", "ep": 2, "n": 3, "goal": "watch the video carefully, then pick up all the cubes that have been picked up before.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "3-13": {"key": "repick_cube_n3", "ep": 13, "n": 3, "goal": "watch the video carefully, then pick up all the cubes that have been picked up before.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "3-16": {"key": "repick_cube_n3", "ep": 16, "n": 3, "goal": "watch the video carefully, then pick up all the cubes that have been picked up before.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "fail"}}, "3-19": {"key": "repick_cube_n3", "ep": 19, "n": 3, "goal": "watch the video carefully, then pick up all the cubes that have been picked up before.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "3-21": {"key": "repick_cube_n3", "ep": 21, "n": 3, "goal": "watch the video carefully, then pick up all the cubes that have been picked up before.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "4-24": {"key": "repick_cube_n4", "ep": 24, "n": 4, "goal": "watch the video carefully, then pick up all the cubes that have been picked up before.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "4-28": {"key": "repick_cube_n4", "ep": 28, "n": 4, "goal": "watch the video carefully, then pick up all the cubes that have been picked up before.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "4-32": {"key": "repick_cube_n4", "ep": 32, "n": 4, "goal": "watch the video carefully, then pick up all the cubes that have been picked up before.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "4-35": {"key": "repick_cube_n4", "ep": 35, "n": 4, "goal": "watch the video carefully, then pick up all the cubes that have been picked up before.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "4-36": {"key": "repick_cube_n4", "ep": 36, "n": 4, "goal": "watch the video carefully, then pick up all the cubes that have been picked up before.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}}, "DrawPattern": {"2-3": {"key": "draw_pattern_n2", "ep": 3, "n": 2, "goal": "watch the video carefully, then replicate the same path.", "outcome": {"pi05": "success", "framesamp": "success", "dnr": "success"}}, "2-10": {"key": "draw_pattern_n2", "ep": 10, "n": 2, "goal": "watch the video carefully, then replicate the same path.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "3-2": {"key": "draw_pattern_n3", "ep": 2, "n": 3, "goal": "watch the video carefully, then replicate the same path.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "fail"}}, "3-3": {"key": "draw_pattern_n3", "ep": 3, "n": 3, "goal": "watch the video carefully, then replicate the same path.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "3-10": {"key": "draw_pattern_n3", "ep": 10, "n": 3, "goal": "watch the video carefully, then replicate the same path.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "3-11": {"key": "draw_pattern_n3", "ep": 11, "n": 3, "goal": "watch the video carefully, then replicate the same path.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}, "4-3": {"key": "draw_pattern_n4", "ep": 3, "n": 4, "goal": "watch the video carefully, then replicate the same path.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "fail"}}, "4-6": {"key": "draw_pattern_n4", "ep": 6, "n": 4, "goal": "watch the video carefully, then replicate the same path.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "4-8": {"key": "draw_pattern_n4", "ep": 8, "n": 4, "goal": "watch the video carefully, then replicate the same path.", "outcome": {"pi05": "fail", "framesamp": "fail", "dnr": "success"}}, "4-10": {"key": "draw_pattern_n4", "ep": 10, "n": 4, "goal": "watch the video carefully, then replicate the same path.", "outcome": {"pi05": "fail", "framesamp": "success", "dnr": "success"}}}};   // task -> trial id (Drive N-episode) -> {key, ep, n (shown N), goal, outcome: {model: success|fail}}
+  function realShow(panel, tid, play) {
+    const t = realData[panel.dataset.task][tid]; panel.dataset.current = tid;
+    panel.querySelectorAll('.real-trial').forEach(b => b.classList.toggle('active', b.dataset.trial === tid));
+    panel.querySelector('.real-goal-text').textContent = t.goal;
+    panel.querySelectorAll('.real-method').forEach(m => {
+      const k = m.dataset.model, v = m.querySelector('video'), good = t.outcome[k] === 'success';
+      const lab = m.querySelector('.result-label');
+      lab.className = 'result-label ' + (good ? 'success' : 'failure'); lab.textContent = good ? 'Success' : 'Failure';
+      v.preload = 'metadata'; v.src = `${REAL_ROOT}/${t.key}/ep${t.ep}_${k}.mp4?v=${REAL_VER}`; v.load();
+      if (play) v.play().catch(() => {});
+    });
+  }
+  function realPick(btn) { realShow(btn.closest('.real-task-panel'), btn.dataset.trial, true); }
+  function realRestart(btn) {
+    btn.closest('.real-task-panel').querySelectorAll('video').forEach(v => { v.currentTime = 0; v.play().catch(() => {}); });
+  }
+  function realActivate(content) {
+    const p = content.querySelector('.real-task-panel');
+    if (!p.dataset.current) realShow(p, p.dataset.default, true); else p.querySelectorAll('video').forEach(v => v.play().catch(() => {}));
+  }
+  realActivate(document.querySelector('.real-demo-content.active'));
+  document.querySelectorAll('#real-demo-tabs .task-tab').forEach(tab => tab.addEventListener('click', function () {
+    document.querySelectorAll('#real-demo-tabs .task-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.real-demo-content').forEach(c => c.classList.remove('active'));
+    this.classList.add('active'); const c = document.getElementById(this.dataset.tab); c.classList.add('active');
+    document.querySelectorAll('.real-demo-content:not(.active) video').forEach(v => v.pause());
+    realActivate(c);
+  }));
+</script>
+</body>
+</html>
