@@ -56,24 +56,15 @@
   .demo-video-col { display:flex; flex-direction:column; align-items:center; }
   .sim-model-selector { width:100%; padding:0.5rem; margin-bottom:0.5rem; border-radius:4px; border:1px solid #ddd; font-family:inherit; font-size:0.95rem; background:#fff; }
   .demo-video { width:100%; border-radius:4px; display:block; background:#000; aspect-ratio:512/260; }
-  /* Real Robot Rollout Demos: selected trials as buttons; the three methods of a trial stacked (16:3 strips, full width) */
+  /* Real Robot Rollout Demos: episode dropdown per task; the three methods of an episode stacked (16:3 strips, full width) */
   .real-video { width:100%; border-radius:4px; display:block; background:#000; aspect-ratio:16/3; }
   .task-suite { font-size:0.85rem; color:#fff; background:#8a8a8a; border-radius:10px; padding:1px 9px; }
-  .real-score { color:#555; font-size:0.95rem; margin-left:auto; }
-  .real-trials { display:flex; flex-direction:column; gap:0.45rem; margin:0.2rem 0 0.8rem; }
-  .real-trial-group { display:flex; align-items:center; gap:0.4rem; flex-wrap:wrap; }
-  .real-n { min-width:3.2rem; font-weight:600; color:#444; }
-  .real-trial { padding:0.3rem 0.8rem; border:1px solid #cfd4dc; border-radius:14px; background:#fff; font-family:inherit; font-size:0.92rem; color:#333; cursor:pointer; }
-  .real-trial:hover { border-color:#3273dc; color:#3273dc; }
-  .real-trial.active { background:#3273dc; border-color:#3273dc; color:#fff; }
   .real-goal { display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap; color:#666; font-size:0.98rem; margin:0 0 0.7rem; }
   .real-sync { margin-left:auto; padding:0.3rem 0.8rem; border:1px solid #cfd4dc; border-radius:4px; background:#fff; font-family:inherit; font-size:0.88rem; color:#333; cursor:pointer; }
   .real-stack { display:flex; flex-direction:column; gap:1rem; }
   .real-method-head { display:flex; align-items:center; justify-content:space-between; gap:0.75rem; margin-bottom:0.35rem; }
   .real-method-name { font-weight:600; color:#222; }
   .real-method[data-model="dnr"] .real-method-name { color:#3273dc; }
-  .real-ep-short { display:none; }
-  @media (max-width: 600px) { .real-ep-long { display:none; } .real-ep-short { display:inline; } .real-trial { padding:0.25rem 0.6rem; font-size:0.88rem; } .real-n { min-width:2.6rem; } }
   .result-label-container { text-align:center; margin-top:0.5rem; }
   .result-label { display:inline-block; text-align:center; font-weight:bold; font-size:0.95rem; padding:0.25rem 0.75rem; border-radius:4px; }
   .result-label.success { color:#23d160; background-color:rgba(35,209,96,0.1); border:1px solid #23d160; }
