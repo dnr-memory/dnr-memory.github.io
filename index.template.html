@@ -87,15 +87,15 @@
 </header>
 
 <figure>
-  <img src="assets/intro_taser.png" alt="Teaser: history-dependent tasks and learning what to remember">
-  <figcaption>(a) Two demonstrations reach the same observation but require different actions: the policy needs a memory of the history. (b) D&amp;R learns what to remember: a memory <i>m<sub>t</sub></i> = 𝓜(<i>h<sub>t</sub></i>) that retrieves the key fact from the full history under a fixed token budget.</figcaption>
+  <img src="assets/teaser.png" alt="Memory is a question of what to remember">
+  <figcaption><b>Memory is a question of what to remember.</b> (a) A history-dependent task: &ldquo;watch the video carefully, then move the cube to the target in the same manner as before&rdquo;. Two videos show different manners (grasp and put down versus peg push), yet at time step <i>t</i> the robot sees the <em>same</em> observation (red). A memoryless policy cannot recall how the cube was moved. (b) We view memory as an optimisation problem: find the memory <i>m<sub>t</sub></i> = 𝓜(<i>h<sub>t</sub></i>), retrieved from the full history, that carries the key fact the current observation lacks (here, the grasp pose at <i>t</i>&minus;3). D&amp;R learns this retrieval end-to-end from the action loss, under a limited budget of memory tokens.</figcaption>
 </figure>
 
 <h2>Abstract</h2>
 <p>Vision–language–action (VLA) models struggle on history-dependent manipulation tasks, where the current observation alone does not determine the action, and the policy needs a memory of the history. Existing memory methods decide what to remember by design, for example keeping frames with large pixel changes, and show inconsistent gains across tasks. We view what to remember as an optimisation problem. From the POMDP formulation of imitation learning, we show that the optimal memory maximises the conditional mutual information <i>I</i>(<i>a<sub>t</sub></i>; <i>m<sub>t</sub></i> | <i>o<sub>t</sub></i>) between the action and the memory given the current observation, the information the decision needs but the observation lacks. We propose <b>Divide-and-Remember (D&amp;R)</b>, a recursive memory method that learns <i>m<sub>t</sub></i> = 𝓜(<i>h<sub>t</sub></i>) to maximise this objective, scaling to long contexts while staying compute-light. It involves two strategies: (1) the selection over the full history is divided recursively into subproblems of top-<i>K</i> selection over 2<i>K</i> tokens, so that fixed-size, lightweight selectors learned end-to-end support an unbounded history, and the composition comes with an approximation guarantee; (2) all recursion blocks share one selector, which captures the selection rule common to every block and keeps the method efficient. On RoboMME, a benchmark of 16 long-horizon manipulation tasks, D&amp;R achieves a state-of-the-art average success rate with consistent gains across all four suites under a budget of only 64 tokens; real-robot experiments show the same gain.</p>
 
 <h2 class="sim-title">Simulation Rollout Demos</h2>
-<p>Front and wrist camera of the RoboMME evaluation episodes (episodes 1&ndash;10 of every task, model seed 42). The same episode id is the same environment across methods; pick the episode and the two methods to compare. All methods share the &pi;<sub>0.5</sub> backbone; the memoryless &pi;<sub>0.5</sub> sees only the current observation.</p>
+<p>Front and wrist camera of the RoboMME evaluation episodes. The same episode id is the same environment across methods; pick the episode and the two methods to compare. All methods share the &pi;<sub>0.5</sub> backbone; the memoryless &pi;<sub>0.5</sub> sees only the current observation.</p>
 <!--ROLLOUTS-->
 
 <h2 class="sim-title">Real Robot Rollout Demos</h2>
