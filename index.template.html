@@ -79,7 +79,7 @@
 <header>
   <h1>Divide-and-Remember<span class="sub">Recursive Action-Relevant Memory for Long-Horizon VLA Policies</span></h1>
   <div class="authors">Anonymous authors</div>
-  <div class="venue">Under review at ICLR 2027</div>
+  <div class="venue">Preprint, 2026</div>
   <div class="btns">
     <span class="btn soon">Paper (coming soon)</span>
     <span class="btn soon">Code (coming soon)</span>
@@ -88,11 +88,11 @@
 
 <figure>
   <img src="assets/teaser.png" alt="Memory is a question of what to remember">
-  <figcaption><b>Memory is a question of what to remember.</b> (a) A history-dependent task: &ldquo;watch the video carefully, then move the cube to the target in the same manner as before&rdquo;. Two videos show different manners (grasp and put down versus peg push), yet at time step <i>t</i> the robot sees the <em>same</em> observation (red). A memoryless policy cannot recall how the cube was moved. (b) We view memory as an optimisation problem: find the memory <i>m<sub>t</sub></i> = 𝓜(<i>h<sub>t</sub></i>), retrieved from the full history, that carries the key fact the current observation lacks (here, the grasp pose at <i>t</i>&minus;3). D&amp;R learns this retrieval end-to-end from the action loss, under a limited budget of memory tokens.</figcaption>
+  <figcaption><b>Memory is a question of what to remember.</b> (a) A history-dependent task: &ldquo;watch the video carefully, then move the cube to the target in the same manner as before&rdquo;. Two videos show different manners (pick-and-place versus peg push), yet at time step <i>t</i> the robot sees the <em>same</em> observation. A memoryless policy cannot recall how the cube was moved. (b) We view memory as an optimisation problem: find the memory <i>m<sub>t</sub></i> = 𝓜(<i>h<sub>t</sub></i>), selected from the full history, that carries the key fact the current observation lacks (here, the grasp pose at <i>t</i>&minus;3), so that the policy knows how to move the cube.</figcaption>
 </figure>
 
 <h2>Abstract</h2>
-<p>Vision–language–action (VLA) models struggle on history-dependent manipulation tasks, where the current observation alone does not determine the action, and the policy needs a memory of the history. Existing memory methods decide what to remember by design, for example keeping frames with large pixel changes, and show inconsistent gains across tasks. We view what to remember as an optimisation problem. From the POMDP formulation of imitation learning, we show that the optimal memory maximises the conditional mutual information <i>I</i>(<i>a<sub>t</sub></i>; <i>m<sub>t</sub></i> | <i>o<sub>t</sub></i>) between the action and the memory given the current observation, the information the decision needs but the observation lacks. We propose <b>Divide-and-Remember (D&amp;R)</b>, a recursive memory method that learns <i>m<sub>t</sub></i> = 𝓜(<i>h<sub>t</sub></i>) to maximise this objective, scaling to long contexts while staying compute-light. It involves two strategies: (1) the selection over the full history is divided recursively into subproblems of top-<i>K</i> selection over 2<i>K</i> tokens, so that fixed-size, lightweight selectors learned end-to-end support an unbounded history, and the composition comes with an approximation guarantee; (2) all recursion blocks share one selector, which captures the selection rule common to every block and keeps the method efficient. On RoboMME, a benchmark of 16 long-horizon manipulation tasks, D&amp;R achieves a state-of-the-art average success rate with consistent gains across all four suites under a budget of only 64 tokens; real-robot experiments show the same gain.</p>
+<p>Vision–language–action (VLA) models struggle on history-dependent manipulation tasks, where the current observation alone does not determine the action, and the policy needs a memory of the history. Existing memory methods decide what to remember by design, for example, keeping frames with large pixel changes, and show inconsistent gains across tasks. We view what to remember as an optimisation problem. From the POMDP formulation of imitation learning, we show that the optimal memory maximises the conditional mutual information <i>I</i>(<i>a<sub>t</sub></i>; <i>m<sub>t</sub></i> | <i>o<sub>t</sub></i>) between the action and the memory given the current observation. Intuitively, this means preserving the action-relevant information in the history that is not already contained in the current observation. Based on our analysis, we propose <b>Divide-and-Remember (D&amp;R)</b>, a recursive memory method that learns a memory function <i>m<sub>t</sub></i> = 𝓜(<i>h<sub>t</sub></i>) and scales to long contexts while staying compute-light. It involves two strategies: (1) the selection over the full history is divided recursively into subproblems of top-<i>K</i> selection over 2<i>K</i> tokens, so that fixed-size, lightweight selectors learned end-to-end support an unbounded history; (2) all recursion blocks share one selector, which captures the selection rule common to every block and keeps the method efficient. On RoboMME, a benchmark of 16 long-horizon manipulation tasks that require remembering when, where, what, and how to act, D&amp;R achieves a state-of-the-art average success rate with consistent gains across all four suites under a budget of only 64 tokens; real-robot experiments show the same gain.</p>
 
 <h2 class="sim-title">Simulation Rollout Demos</h2>
 <p>Front and wrist camera of the RoboMME evaluation episodes. The same episode id is the same environment across methods; pick the episode and the two methods to compare. All methods share the &pi;<sub>0.5</sub> backbone; the memoryless &pi;<sub>0.5</sub> sees only the current observation.</p>
@@ -104,14 +104,14 @@
 
 
 <h2>BibTeX</h2>
-<pre>@inproceedings{anonymous2027divide,
-  title     = {Divide-and-Remember: Recursive Action-Relevant Memory for Long-Horizon VLA Policies},
-  author    = {Anonymous},
-  booktitle = {Under review at the International Conference on Learning Representations (ICLR)},
-  year      = {2027}
+<pre>@misc{anonymous2026divide,
+  title  = {Divide-and-Remember: Recursive Action-Relevant Memory for Long-Horizon VLA Policies},
+  author = {Anonymous},
+  year   = {2026},
+  note   = {Preprint}
 }</pre>
 
-<footer>Anonymous project page for double-blind review.</footer>
+<footer>Anonymous project page.</footer>
 </div>
 <!--ROLLOUTS_JS-->
 </body>
